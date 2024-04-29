@@ -1,0 +1,55 @@
+services:
+  paper: 
+    build:
+      context: .docker
+      dockerfile: Dockerfile
+      args:
+        JAVA_VERSION: 21
+        PAPERMC_APP_NAME: paper
+        PAPERMC_VERSION: 1.20.4
+        JVM_FLAGS: |
+          -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200
+          -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch
+          -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M
+          -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4
+          -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90
+          -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem
+          -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "25565"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+    tty: true
+    stdin_open: true
+    environment:
+      - SERVER_MEMORY=4G
+    ports:
+      - "25565:25565"
+    volumes:
+      - ./server/paper:/home/minecraft
+
+  velocity: 
+    build:
+      context: .docker
+      dockerfile: Dockerfile
+      args:
+        JAVA_VERSION: 21
+        PAPERMC_APP_NAME: velocity
+        PAPERMC_VERSION: latest
+        JVM_FLAGS: |
+          -XX:+AlwaysPreTouch -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions
+          -XX:+UseG1GC -XX:G1HeapRegionSize=4M -XX:MaxInlineLevel=15
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "25577"]
+      interval: 3s
+      timeout: 3s
+      retries: 3
+    tty: true
+    stdin_open: true
+    environment:
+      - SERVER_MEMORY=2G
+    ports:
+      - "25577:25577"
+    volumes:
+      - ./server/velocity:/home/minecraft
