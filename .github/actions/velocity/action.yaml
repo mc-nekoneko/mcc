@@ -36,7 +36,7 @@ runs:
         build-args: |
           JAVA_VERSION=${{ inputs.jre-version }}
           PAPERMC_APP_NAME=paper
-          PAPERMC_VERSION=${{ inputs.version }}
+          PAPERMC_APP_VERSION=${{ inputs.version }}
           JVM_FLAGS=-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200
             -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch
             -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M
