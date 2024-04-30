@@ -1,0 +1,24 @@
+name: Target Custom
+
+on:
+  workflow_dispatch:
+    inputs:
+      jre-version:
+        description: 'JRE Version'
+        required: true
+        default: '21'
+      version:
+        description: 'MC Version'
+        required: true
+        default: 'latest'
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/paper
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          jre-version: ${{ github.event.inputs.jre-version }}
+          version: ${{ github.event.inputs.version }}
