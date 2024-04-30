@@ -1,0 +1,23 @@
+name: Target Latest
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/paper
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        
+  velocity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/velocity
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
