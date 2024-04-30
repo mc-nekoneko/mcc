@@ -1,9 +1,7 @@
 name: Target 1.20.4
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   paper:

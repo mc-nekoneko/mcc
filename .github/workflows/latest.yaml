@@ -1,9 +1,7 @@
 name: Target Latest
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   paper:
