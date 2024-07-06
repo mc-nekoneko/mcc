@@ -6,7 +6,7 @@ services:
       args:
         JAVA_VERSION: 21
         PAPERMC_APP_NAME: paper
-        PAPERMC_VERSION: 1.20.4
+        PAPERMC_APP_VERSION: 1.20.4
         JVM_FLAGS: |
           -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200
           -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch
@@ -36,7 +36,7 @@ services:
       args:
         JAVA_VERSION: 21
         PAPERMC_APP_NAME: velocity
-        PAPERMC_VERSION: latest
+        PAPERMC_APP_VERSION: latest
         JVM_FLAGS: |
           -XX:+AlwaysPreTouch -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions
           -XX:+UseG1GC -XX:G1HeapRegionSize=4M -XX:MaxInlineLevel=15
