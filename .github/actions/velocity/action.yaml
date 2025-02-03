@@ -13,10 +13,27 @@ inputs:
     description: "Velocity version to build"
     required: false
     default: "latest"
- 
-runs: 
+
+outputs:
+  velocity_version:
+    description: "Actual Velocity version that was built"
+    value: ${{ steps.resolve-version.outputs.version }}
+
+runs:
   using: "composite"
   steps:
+    - name: Resolve Velocity version
+      id: resolve-version
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          VERSION=$(curl -sSL "https://api.papermc.io/v2/projects/velocity" | jq -r '.versions[-1]')
+        else
+          VERSION="${{ inputs.version }}"
+        fi
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "Resolved Velocity version: ${VERSION}"
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
@@ -32,7 +49,9 @@ runs:
       with:
         context: .docker
         push: true
-        tags: ghcr.io/${{ github.repository }}/velocity:${{ inputs.version }}
+        tags: |
+          ghcr.io/${{ github.repository }}/velocity:latest
+          ghcr.io/${{ github.repository }}/velocity:${{ steps.resolve-version.outputs.version }}
         build-args: |
           JAVA_VERSION=${{ inputs.jre-version }}
           PAPERMC_APP_NAME=velocity
