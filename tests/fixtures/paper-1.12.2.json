@@ -1,0 +1,8 @@
+{
+  "version": {
+    "id": "1.12.2",
+    "support": { "status": "UNSUPPORTED" },
+    "java": { "version": { "minimum": 8 }, "flags": { "recommended": ["-XX:+UseG1GC"] } }
+  },
+  "builds": [1620]
+}

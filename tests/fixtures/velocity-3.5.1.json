@@ -1,0 +1,8 @@
+{
+  "version": {
+    "id": "3.5.1",
+    "support": { "status": "SUPPORTED" },
+    "java": { "version": { "minimum": 21 }, "flags": { "recommended": [] } }
+  },
+  "builds": [615, 614, 613]
+}

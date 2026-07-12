@@ -4,9 +4,12 @@ services:
       context: .docker
       dockerfile: Dockerfile
       args:
-        JAVA_VERSION: 21
-        PAPERMC_APP_NAME: paper
-        PAPERMC_APP_VERSION: 1.20.4
+        JAVA_IMAGE: eclipse-temurin:17-jre-jammy@sha256:475d8e96b4b2bfe08999e5e854755c773af1581acdf959a4545d88f0696a2339
+        PAPERMC_PROJECT: paper
+        PAPERMC_VERSION: 1.20.4
+        PAPERMC_BUILD: 499
+        PAPERMC_DOWNLOAD_URL: https://fill-data.papermc.io/v1/objects/cabed3ae77cf55deba7c7d8722bc9cfd5e991201c211665f9265616d9fe5c77b/paper-1.20.4-499.jar
+        PAPERMC_DOWNLOAD_SHA256: cabed3ae77cf55deba7c7d8722bc9cfd5e991201c211665f9265616d9fe5c77b
         JVM_FLAGS: |
           -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200
           -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch
@@ -34,9 +37,12 @@ services:
       context: .docker
       dockerfile: Dockerfile
       args:
-        JAVA_VERSION: 21
-        PAPERMC_APP_NAME: velocity
-        PAPERMC_APP_VERSION: latest
+        JAVA_IMAGE: eclipse-temurin:21-jre-jammy@sha256:d63bd8d9b171999cbed8576f2c76e874dd4856791a358536e5c4d407e77edc13
+        PAPERMC_PROJECT: velocity
+        PAPERMC_VERSION: 3.5.1
+        PAPERMC_BUILD: 615
+        PAPERMC_DOWNLOAD_URL: https://fill-data.papermc.io/v1/objects/b4e3164df5377346854dc6cb9e6a78022b1946ff69e89676313f5f6f1c6f0fb3/velocity-3.5.1-615.jar
+        PAPERMC_DOWNLOAD_SHA256: b4e3164df5377346854dc6cb9e6a78022b1946ff69e89676313f5f6f1c6f0fb3
         JVM_FLAGS: |
           -XX:+AlwaysPreTouch -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions
           -XX:+UseG1GC -XX:G1HeapRegionSize=4M -XX:MaxInlineLevel=15
