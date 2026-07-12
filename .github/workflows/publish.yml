@@ -201,6 +201,7 @@ jobs:
 
   verify:
     needs: [resolve, aliases]
+    if: always() && needs.resolve.result == 'success' && needs.aliases.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
