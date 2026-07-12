@@ -244,7 +244,7 @@ jobs:
             -e SERVER_MEMORY=1G -v "$runtime_home:/home/minecraft" "$reference"
           ready=false
           for _ in $(seq 1 60); do
-            if docker logs "$container" 2>&1 | grep -Eq 'Done|Listening on'; then
+            if docker logs "$container" 2>&1 | grep -Eq 'Done \(|Listening on'; then
               ready=true
               break
             fi
