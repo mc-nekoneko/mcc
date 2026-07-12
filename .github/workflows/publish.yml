@@ -53,8 +53,11 @@ jobs:
     timeout-minutes: 5
     outputs:
       metadata: ${{ steps.resolve.outputs.metadata }}
-      tags: ${{ steps.resolve.outputs.tags }}
+      alias_tags: ${{ steps.resolve.outputs.alias_tags }}
       image: ${{ steps.resolve.outputs.image }}
+      canonical_ref: ${{ steps.resolve.outputs.canonical_ref }}
+      existing_digest: ${{ steps.resolve.outputs.existing_digest }}
+      publish_required: ${{ steps.resolve.outputs.publish_required }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Resolve and validate immutable inputs
@@ -66,20 +69,35 @@ jobs:
           BUILD: ${{ inputs.build }}
           JRE: ${{ inputs.jre }}
           MOVE_ALIASES: ${{ inputs.move_aliases }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           args=(--project "$PROJECT" --track "$TRACK" --version "$VERSION")
           [[ -z "$BUILD" ]] || args+=(--build "$BUILD")
           [[ -z "$JRE" ]] || args+=(--jre "$JRE")
           scripts/resolve-papermc.sh "${args[@]}" > manifest.json
           image="ghcr.io/${GITHUB_REPOSITORY}/${PROJECT}"
+          canonical_ref="$image:$(jq -r .canonical_tag manifest.json)"
           jq -e . manifest.json
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          if existing_digest=$(docker buildx imagetools inspect "$canonical_ref" --format '{{json .Manifest.Digest}}' 2> inspect-error.txt); then
+            existing_digest=${existing_digest//\"/}
+            publish_required=false
+          elif grep -Eqi 'not found|manifest unknown' inspect-error.txt; then
+            existing_digest=
+            publish_required=true
+          else
+            cat inspect-error.txt >&2
+            exit 1
+          fi
           {
             echo "metadata=$(jq -c . manifest.json)"
             echo "image=$image"
-            echo 'tags<<MCC_TAGS'
+            echo "canonical_ref=$canonical_ref"
+            echo "existing_digest=$existing_digest"
+            echo "publish_required=$publish_required"
+            echo 'alias_tags<<MCC_TAGS'
             jq -r --arg image "$image" --argjson move "$MOVE_ALIASES" '
-              [$image + ":" + .canonical_tag]
-              + [.compatibility_tags[] | $image + ":" + .]
+              [.compatibility_tags[] | $image + ":" + .]
               + (if $move then [.moving_tags[] | $image + ":" + .] else [] end)
               | unique[]
             ' manifest.json
@@ -88,6 +106,7 @@ jobs:
 
   publish:
     needs: resolve
+    if: needs.resolve.outputs.publish_required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -109,7 +128,7 @@ jobs:
           file: .docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ needs.resolve.outputs.tags }}
+          tags: ${{ needs.resolve.outputs.canonical_ref }}
           sbom: true
           provenance: mode=max
           labels: |
@@ -129,15 +148,17 @@ jobs:
           METADATA: ${{ needs.resolve.outputs.metadata }}
           IMAGE: ${{ needs.resolve.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
-          TAGS: ${{ needs.resolve.outputs.tags }}
+          CANONICAL_REF: ${{ needs.resolve.outputs.canonical_ref }}
+          ALIAS_TAGS: ${{ needs.resolve.outputs.alias_tags }}
         run: |
           jq -n \
             --argjson metadata "$METADATA" \
             --arg image "$IMAGE" \
             --arg digest "$DIGEST" \
-            --arg tags "$TAGS" \
+            --arg canonical_ref "$CANONICAL_REF" \
+            --arg alias_tags "$ALIAS_TAGS" \
             --arg source_sha "$GITHUB_SHA" \
-            '{metadata:$metadata,image:$image,digest:$digest,tags:($tags|split("\n")),source_sha:$source_sha}' \
+            '{metadata:$metadata,image:$image,digest:$digest,tags:([$canonical_ref] + ($alias_tags|split("\n"))),source_sha:$source_sha}' \
             > image-attestation.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -145,15 +166,48 @@ jobs:
           path: image-attestation.json
           if-no-files-found: error
 
-  verify:
+  aliases:
     needs: [resolve, publish]
+    if: always() && needs.resolve.result == 'success' && (needs.publish.result == 'success' || needs.publish.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      digest: ${{ steps.digest.outputs.digest }}
+    steps:
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Select immutable digest
+        id: digest
+        env:
+          EXISTING_DIGEST: ${{ needs.resolve.outputs.existing_digest }}
+          PUBLISHED_DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          digest=${EXISTING_DIGEST:-$PUBLISHED_DIGEST}
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Point allowed aliases at the immutable index
+        env:
+          IMAGE: ${{ needs.resolve.outputs.image }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          ALIAS_TAGS: ${{ needs.resolve.outputs.alias_tags }}
+        run: |
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] || docker buildx imagetools create --tag "$tag" "$IMAGE@$DIGEST"
+          done <<< "$ALIAS_TAGS"
+
+  verify:
+    needs: [resolve, aliases]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Verify index, attestations, startup, and TERM
         env:
           IMAGE: ${{ needs.resolve.outputs.image }}
-          DIGEST: ${{ needs.publish.outputs.digest }}
+          DIGEST: ${{ needs.aliases.outputs.digest }}
           METADATA: ${{ needs.resolve.outputs.metadata }}
         run: |
           set -euo pipefail
