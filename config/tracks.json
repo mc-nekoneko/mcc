@@ -21,18 +21,17 @@
     },
     "paper": {
       "current": [
-        { "version": "26.2", "build": null, "jre": 25 }
-      ],
-      "previous": [
         { "version": "26.1.2", "build": 74, "jre": 25 }
       ],
+      "previous": [
+        { "version": "1.21.11", "build": 132, "jre": 21 }
+      ],
       "legacy": [
-        { "version": "1.21.11", "build": 132, "jre": 21 },
         { "version": "1.20.4", "build": 499, "jre": 17 },
         { "version": "1.12.2", "build": 1620, "jre": 11 }
       ],
       "preview": [
-        { "version": "26.2-rc-2", "build": 9, "jre": 25 }
+        { "version": "26.2", "build": 56, "jre": 25 }
       ]
     }
   }

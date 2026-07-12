@@ -24,7 +24,9 @@ jobs:
     with:
       project: paper
       track: current
-      version: '26.2'
+      version: 26.1.2
+      build: '74'
+      jre: '25'
       move_aliases: true
     secrets: inherit
 
@@ -33,8 +35,8 @@ jobs:
     with:
       project: paper
       track: previous
-      version: 26.1.2
-      build: '74'
-      jre: '25'
+      version: 1.21.11
+      build: '132'
+      jre: '21'
       move_aliases: true
     secrets: inherit
