@@ -56,7 +56,7 @@ jobs:
       tags: ${{ steps.resolve.outputs.tags }}
       image: ${{ steps.resolve.outputs.image }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Resolve and validate immutable inputs
         id: resolve
         env:
@@ -90,8 +90,10 @@ jobs:
     needs: resolve
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -142,3 +144,56 @@ jobs:
           name: ${{ inputs.project }}-${{ inputs.version }}-${{ fromJSON(needs.resolve.outputs.metadata).build }}-attestation
           path: image-attestation.json
           if-no-files-found: error
+
+  verify:
+    needs: [resolve, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify index, attestations, startup, and TERM
+        env:
+          IMAGE: ${{ needs.resolve.outputs.image }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+          METADATA: ${{ needs.resolve.outputs.metadata }}
+        run: |
+          set -euo pipefail
+          reference="$IMAGE@$DIGEST"
+          index=$(docker buildx imagetools inspect "$reference" --raw)
+          amd64=$(jq '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64")] | length' <<< "$index")
+          arm64=$(jq '[.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64")] | length' <<< "$index")
+          attestations=$(jq -r '.manifests[] | select(.platform.os == "unknown") | .digest' <<< "$index")
+          [[ "$amd64" == 1 && "$arm64" == 1 ]]
+          [[ "$(wc -l <<< "$attestations")" -eq 2 ]]
+          while IFS= read -r attestation; do
+            predicates=$(docker buildx imagetools inspect "$IMAGE@$attestation" --raw \
+              | jq -r '[.layers[].annotations["in-toto.io/predicate-type"]] | sort | join(",")')
+            [[ "$predicates" == "https://slsa.dev/provenance/v1,https://spdx.dev/Document" ]]
+          done <<< "$attestations"
+
+          docker pull --platform linux/amd64 "$reference"
+          expected_sha=$(jq -r .sha256 <<< "$METADATA")
+          docker run --rm --platform linux/amd64 --entrypoint /bin/bash "$reference" -lc \
+            'cat /opt/papermc/server.env; sha256sum /opt/papermc/server.jar' \
+            | tee /tmp/runtime-metadata.txt
+          grep -q "SHA256=$expected_sha" /tmp/runtime-metadata.txt
+          grep -q "$expected_sha  /opt/papermc/server.jar" /tmp/runtime-metadata.txt
+
+          container=mcc-runtime-verify
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker run -d --platform linux/amd64 --name "$container" -e SERVER_MEMORY=256M "$reference"
+          ready=false
+          for _ in $(seq 1 60); do
+            if docker logs "$container" 2>&1 | grep -Eq 'Done|Listening on'; then
+              ready=true
+              break
+            fi
+            [[ "$(docker inspect -f '{{.State.Running}}' "$container")" == true ]] || break
+            sleep 1
+          done
+          docker logs "$container"
+          [[ "$ready" == true ]]
+          started=$(date +%s)
+          docker stop --time 10 "$container" >/dev/null
+          stopped=$(date +%s)
+          [[ $((stopped - started)) -lt 10 ]]
+          [[ "$(docker inspect -f '{{.State.ExitCode}}' "$container")" == 0 ]]
