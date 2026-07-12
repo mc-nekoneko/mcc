@@ -2,6 +2,11 @@ name: Refresh configured runtime tracks
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [refresh-runtime-images]
+  schedule:
+    - cron: '0 0 1,15 * *'
+    - cron: '0 1 8 * *'
 
 permissions:
   contents: read
@@ -9,28 +14,29 @@ permissions:
 
 jobs:
   velocity-current:
+    if: github.event_name != 'schedule' || github.event.schedule == '0 0 1,15 * *'
     uses: ./.github/workflows/publish.yml
     with:
       project: velocity
       track: current
       version: 3.5.1
-      build: '615'
       jre: '21'
       move_aliases: true
     secrets: inherit
 
   paper-current:
+    if: github.event_name != 'schedule' || github.event.schedule == '0 0 1,15 * *'
     uses: ./.github/workflows/publish.yml
     with:
       project: paper
       track: current
       version: 26.1.2
-      build: '74'
       jre: '25'
       move_aliases: true
     secrets: inherit
 
   paper-previous:
+    if: github.event_name != 'schedule'
     uses: ./.github/workflows/publish.yml
     with:
       project: paper
@@ -38,5 +44,41 @@ jobs:
       version: 1.21.11
       build: '132'
       jre: '21'
+      move_aliases: true
+    secrets: inherit
+
+  paper-legacy-1-20-4:
+    if: github.event_name != 'schedule' || github.event.schedule == '0 1 8 * *'
+    uses: ./.github/workflows/publish.yml
+    with:
+      project: paper
+      track: legacy
+      version: 1.20.4
+      build: '499'
+      jre: '17'
+      move_aliases: false
+    secrets: inherit
+
+  paper-legacy-1-12-2:
+    if: github.event_name != 'schedule' || github.event.schedule == '0 1 8 * *'
+    uses: ./.github/workflows/publish.yml
+    with:
+      project: paper
+      track: legacy
+      version: 1.12.2
+      build: '1620'
+      jre: '11'
+      move_aliases: false
+    secrets: inherit
+
+  paper-preview:
+    if: github.event_name != 'schedule'
+    uses: ./.github/workflows/publish.yml
+    with:
+      project: paper
+      track: preview
+      version: '26.2'
+      build: '56'
+      jre: '25'
       move_aliases: true
     secrets: inherit
