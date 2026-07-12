@@ -9,7 +9,7 @@
   "projects": {
     "velocity": {
       "current": [
-        { "version": "3.5.1", "build": 615, "jre": 21 }
+        { "version": "3.5.1", "build": null, "jre": 21 }
       ],
       "previous": [
         { "version": "3.5.0", "build": null, "jre": 21 }
@@ -21,7 +21,7 @@
     },
     "paper": {
       "current": [
-        { "version": "26.1.2", "build": 74, "jre": 25 }
+        { "version": "26.1.2", "build": null, "jre": 25 }
       ],
       "previous": [
         { "version": "1.21.11", "build": 132, "jre": 21 }
