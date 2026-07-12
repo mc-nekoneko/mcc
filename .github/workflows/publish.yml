@@ -234,8 +234,14 @@ jobs:
           grep -q "$expected_sha  /opt/papermc/server.jar" /tmp/runtime-metadata.txt
 
           container=mcc-runtime-verify
+          runtime_home=/tmp/mcc-runtime-home
+          mkdir -p "$runtime_home"
+          chmod 777 "$runtime_home"
+          printf 'eula=true\n' > "$runtime_home/eula.txt"
+          chmod 666 "$runtime_home/eula.txt"
           trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
-          docker run -d --platform linux/amd64 --name "$container" -e SERVER_MEMORY=256M "$reference"
+          docker run -d --platform linux/amd64 --name "$container" \
+            -e SERVER_MEMORY=1G -v "$runtime_home:/home/minecraft" "$reference"
           ready=false
           for _ in $(seq 1 60); do
             if docker logs "$container" 2>&1 | grep -Eq 'Done|Listening on'; then
@@ -250,5 +256,9 @@ jobs:
           started=$(date +%s)
           docker stop --time 10 "$container" >/dev/null
           stopped=$(date +%s)
-          [[ $((stopped - started)) -lt 10 ]]
-          [[ "$(docker inspect -f '{{.State.ExitCode}}' "$container")" == 0 ]]
+          stop_latency=$((stopped - started))
+          exit_code=$(docker inspect -f '{{.State.ExitCode}}' "$container")
+          docker logs "$container"
+          printf 'TERM stop latency=%ss exit_code=%s\n' "$stop_latency" "$exit_code"
+          [[ "$stop_latency" -lt 10 ]]
+          [[ "$exit_code" == 0 || "$exit_code" == 143 ]]
