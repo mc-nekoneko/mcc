@@ -1,0 +1,144 @@
+name: Publish exact runtime image
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: PaperMC project
+        type: choice
+        options: [velocity, paper]
+        required: true
+      track:
+        description: Lifecycle track
+        type: choice
+        options: [current, previous, legacy, preview, custom]
+        required: true
+      version:
+        description: Exact upstream version
+        type: string
+        required: true
+      build:
+        description: Exact build; blank selects the newest allowed channel
+        type: string
+        required: false
+      jre:
+        description: JRE override; blank uses policy or Fill minimum
+        type: string
+        required: false
+      move_aliases:
+        description: Move aliases allowed by the selected configured track
+        type: boolean
+        default: false
+        required: true
+  workflow_call:
+    inputs:
+      project: { type: string, required: true }
+      track: { type: string, required: true }
+      version: { type: string, required: true }
+      build: { type: string, required: false, default: '' }
+      jre: { type: string, required: false, default: '' }
+      move_aliases: { type: boolean, required: false, default: false }
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-${{ inputs.project }}-${{ inputs.track }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      metadata: ${{ steps.resolve.outputs.metadata }}
+      tags: ${{ steps.resolve.outputs.tags }}
+      image: ${{ steps.resolve.outputs.image }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Resolve and validate immutable inputs
+        id: resolve
+        env:
+          PROJECT: ${{ inputs.project }}
+          TRACK: ${{ inputs.track }}
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+          JRE: ${{ inputs.jre }}
+          MOVE_ALIASES: ${{ inputs.move_aliases }}
+        run: |
+          args=(--project "$PROJECT" --track "$TRACK" --version "$VERSION")
+          [[ -z "$BUILD" ]] || args+=(--build "$BUILD")
+          [[ -z "$JRE" ]] || args+=(--jre "$JRE")
+          scripts/resolve-papermc.sh "${args[@]}" > manifest.json
+          image="ghcr.io/${GITHUB_REPOSITORY}/${PROJECT}"
+          jq -e . manifest.json
+          {
+            echo "metadata=$(jq -c . manifest.json)"
+            echo "image=$image"
+            echo 'tags<<MCC_TAGS'
+            jq -r --arg image "$image" --argjson move "$MOVE_ALIASES" '
+              [$image + ":" + .canonical_tag]
+              + [.compatibility_tags[] | $image + ":" + .]
+              + (if $move then [.moving_tags[] | $image + ":" + .] else [] end)
+              | unique[]
+            ' manifest.json
+            echo MCC_TAGS
+          } >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish immutable index
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: .docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ needs.resolve.outputs.tags }}
+          sbom: true
+          provenance: mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ fromJSON(needs.resolve.outputs.metadata).canonical_tag }}
+          build-args: |
+            JAVA_IMAGE=${{ fromJSON(needs.resolve.outputs.metadata).java_image }}
+            PAPERMC_PROJECT=${{ fromJSON(needs.resolve.outputs.metadata).project }}
+            PAPERMC_VERSION=${{ fromJSON(needs.resolve.outputs.metadata).version }}
+            PAPERMC_BUILD=${{ fromJSON(needs.resolve.outputs.metadata).build }}
+            PAPERMC_DOWNLOAD_URL=${{ fromJSON(needs.resolve.outputs.metadata).url }}
+            PAPERMC_DOWNLOAD_SHA256=${{ fromJSON(needs.resolve.outputs.metadata).sha256 }}
+            JVM_FLAGS=${{ join(fromJSON(needs.resolve.outputs.metadata).jvm_flags, ' ') }}
+      - name: Record image attestation
+        env:
+          METADATA: ${{ needs.resolve.outputs.metadata }}
+          IMAGE: ${{ needs.resolve.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          TAGS: ${{ needs.resolve.outputs.tags }}
+        run: |
+          jq -n \
+            --argjson metadata "$METADATA" \
+            --arg image "$IMAGE" \
+            --arg digest "$DIGEST" \
+            --arg tags "$TAGS" \
+            --arg source_sha "$GITHUB_SHA" \
+            '{metadata:$metadata,image:$image,digest:$digest,tags:($tags|split("\n")),source_sha:$source_sha}' \
+            > image-attestation.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ inputs.project }}-${{ inputs.version }}-${{ fromJSON(needs.resolve.outputs.metadata).build }}-attestation
+          path: image-attestation.json
+          if-no-files-found: error

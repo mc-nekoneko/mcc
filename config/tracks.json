@@ -1,0 +1,39 @@
+{
+  "wrapper_revision": 1,
+  "java_images": {
+    "11": "eclipse-temurin:11-jre-jammy@sha256:76ffb747ad3a62a8b81ac3c76e2c3b1c06e475b1e10109d0a4dd604db627c9f5",
+    "17": "eclipse-temurin:17-jre-jammy@sha256:475d8e96b4b2bfe08999e5e854755c773af1581acdf959a4545d88f0696a2339",
+    "21": "eclipse-temurin:21-jre-jammy@sha256:d63bd8d9b171999cbed8576f2c76e874dd4856791a358536e5c4d407e77edc13",
+    "25": "eclipse-temurin:25-jre-jammy@sha256:b8ba5fca9d88b6ecc3a46c8e75b744f84aca9a9d08587901b5ab480baf641ab5"
+  },
+  "projects": {
+    "velocity": {
+      "current": [
+        { "version": "3.5.1", "build": 615, "jre": 21 }
+      ],
+      "previous": [
+        { "version": "3.5.0", "build": null, "jre": 21 }
+      ],
+      "legacy": [],
+      "preview": [
+        { "version": "4.0.0-SNAPSHOT", "build": null, "jre": 25 }
+      ]
+    },
+    "paper": {
+      "current": [
+        { "version": "26.2", "build": null, "jre": 25 }
+      ],
+      "previous": [
+        { "version": "26.1.2", "build": 74, "jre": 25 }
+      ],
+      "legacy": [
+        { "version": "1.21.11", "build": 132, "jre": 21 },
+        { "version": "1.20.4", "build": 499, "jre": 17 },
+        { "version": "1.12.2", "build": 1620, "jre": 11 }
+      ],
+      "preview": [
+        { "version": "26.2-rc-2", "build": 9, "jre": 25 }
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": 1620,
+  "channel": "STABLE",
+  "downloads": {
+    "server:default": {
+      "name": "paper-1.12.2-1620.jar",
+      "checksums": { "sha256": "877127c161990f2d37e64c404572f77c58315c25d1b2ee4b2bfe462b0fec23f5" },
+      "url": "https://downloads.test/paper-1.12.2-1620.jar"
+    }
+  }
+}

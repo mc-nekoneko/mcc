@@ -1,0 +1,11 @@
+{
+  "id": 1,
+  "channel": "STABLE",
+  "downloads": {
+    "server:default": {
+      "name": "unsupported.jar",
+      "checksums": { "sha256": "00124c4d34134e438faf2cfa2fcc436a26ac3e0142c6607831c50c0e7edab66d" },
+      "url": "https://downloads.test/unsupported.jar"
+    }
+  }
+}

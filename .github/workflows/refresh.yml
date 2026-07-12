@@ -1,0 +1,40 @@
+name: Refresh configured runtime tracks
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  velocity-current:
+    uses: ./.github/workflows/publish.yml
+    with:
+      project: velocity
+      track: current
+      version: 3.5.1
+      build: '615'
+      jre: '21'
+      move_aliases: true
+    secrets: inherit
+
+  paper-current:
+    uses: ./.github/workflows/publish.yml
+    with:
+      project: paper
+      track: current
+      version: '26.2'
+      move_aliases: true
+    secrets: inherit
+
+  paper-previous:
+    uses: ./.github/workflows/publish.yml
+    with:
+      project: paper
+      track: previous
+      version: 26.1.2
+      build: '74'
+      jre: '25'
+      move_aliases: true
+    secrets: inherit
